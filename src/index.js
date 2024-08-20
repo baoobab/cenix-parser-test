@@ -47,72 +47,71 @@ const checkRegion = async (page, regionName) => {
     return !!booleanRegions.filter(item => item === true).length;
 }
 
+
 async function main() {
+    try {
+        const url = process.argv[2].trim();
+        const regionName = process.argv[3].trim();
 
-    const url = process.argv[2];
-    const regionName = process.argv[3];
-
-    if (!url) {
-        console.log("Url not provided, exit...")
-        return;
-    }
-    if (!regionName) {
-        console.log("Region not provided, exit...")
-        return;
-    }
-    console.log(regionName)
-    const browser = await puppeteer.launch({headless: false});
-    const page = await browser.newPage();
-    await page.setViewport({width: 1280, height: 720});
-
-    await page.goto(url);
-    await page.setCookie({
-        name: 'isUserAgreeCookiesPolicy', value: 'true'
-    });
-    await page.reload();
+        if (!url) {
+            throw new Error("Url not provided")
+        }
+        if (!regionName) {
+            throw new Error("Region not provided")
+        }
 
 
-    // https://www.vprok.ru/product/domik-v-derevne-dom-v-der-moloko-ster-3-2-950g--309202
-    // https://www.vprok.ru/product/greenfield-greenf-chay-gold-ceyl-bl-pak-100h2g--307403
+        const browser = await puppeteer.launch(
+            {
+                headless: false,
+            });
+        const page = await browser.newPage();
+        await page.setViewport({width: 1280, height: 720});
 
-    await page.waitForSelector(".Region_regionIcon__oZ0Rt")
-
-    await page.locator(".Region_regionIcon__oZ0Rt").click();
-
-    await page.locator(".UiRegionListBase_list__cH0fK").waitHandle();
-    // setTimeout(() => {}, 2000)
-    const test = await page.$$eval('.UiRegionListBase_item___ly_A', (items) => {
-        return items.map((item) => {
-            return "Москва и область" === item.textContent.trim()
+        await page.goto(url);
+        await page.setCookie({
+            name: 'isUserAgreeCookiesPolicy', value: 'true'
         });
-    });
+        await page.reload();
 
-    console.log('Регионы:', await checkRegion(page, regionName));
-    await page.locator("text/Санкт-Петербург и область").click();
-    // setTimeout(() => {}, 1000)
+        // Ждем загрузки контейнера с регионами, и открываем модалку
+        await page.waitForSelector(".Region_regionIcon__oZ0Rt", {timeout: 10000})
+        await page.locator(".Region_regionIcon__oZ0Rt").click();
+        await page.waitForSelector(".UiRegionListBase_list__cH0fK", {timeout: 10000});
 
-    await page.waitForNavigation();
+        // Проверка на наличие региона в списке
+        if (!await checkRegion(page, regionName)) {
+            await browser.close();
+            throw new Error(`Region ${regionName} isn't on the site`)
+        }
+        await page.locator(`text/${regionName}`).click();
 
-    await page.waitForFunction(() => {
-        const img = document.querySelector('img.UiSharedPicture_image___6F3C');
-        return img && img.complete && img.naturalHeight !== 0;
-    });
+        // Ждем полной загрузки изображения товара
+        await page.waitForFunction(() => {
+            const img = document.querySelector('img.UiSharedPicture_image___6F3C');
+            return img && img.complete && img.naturalHeight !== 0;
+        });
 
 
-    await scrollToBottom(page); // Прокрутка до низа страницы для корректной отрисовки
-    await hideUselessElements(page); // Скрытие лишних элементов для скриншота
+        await scrollToBottom(page); // Прокрутка до низа страницы для корректной отрисовки
+        await hideUselessElements(page); // Скрытие лишних элементов для скриншота
 
-    await page.waitForFunction(() => {
-        const img = document.querySelector('img.UiFooterBottomBase_logo__wEbJo');
-        return img && img.complete && img.naturalHeight !== 0;
-    });
+        // Ждем полной загрузки изображения в футере, страница готова
+        await page.waitForFunction(() => {
+            const img = document.querySelector('img.UiFooterBottomBase_logo__wEbJo');
+            return img && img.complete && img.naturalHeight !== 0;
+        });
 
-    await page.screenshot({
-        path: "screenshot.jpg", fullPage: true
-    });
+        await page.screenshot({
+            path: "screenshot.jpg", fullPage: true
+        });
 
-    console.log("Done");
-    await browser.close();
+        console.log("Done");
+        await browser.close();
+    } catch (e) {
+        console.error(e)
+        return;
+    }
 }
 
 await main();
