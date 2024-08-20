@@ -11,9 +11,8 @@ const scrollToBottom = async (page) => {
         }
 
         const distance = 100; // Расстояние прокрутки за раз
-        const delay = 100; // Задержка между прокрутками, мс
+        const delay = 50; // Задержка между прокрутками, мс
         let totalHeight = 0;
-        const innerHeight = window.innerHeight;
         const scrollHeight = document.body.scrollHeight;
 
         while (totalHeight < scrollHeight) {
@@ -49,22 +48,20 @@ const checkRegion = async (page, regionName) => {
 
 
 async function main() {
+    const browser = await puppeteer.launch({headless: false});
     try {
-        const url = process.argv[2].trim();
-        const regionName = process.argv[3].trim();
-
+        const url = process.argv[process.argv.length - 2]?.trim();
+        const regionName = process.argv[process.argv.length - 1]?.trim();
         if (!url) {
-            throw new Error("Url not provided")
+            console.error("Error: Url not provided")
+            return;
         }
         if (!regionName) {
-            throw new Error("Region not provided")
+            console.error("Error: Region not provided")
+            return;
         }
 
-
-        const browser = await puppeteer.launch(
-            {
-                headless: false,
-            });
+        console.log("Processing...")
         const page = await browser.newPage();
         await page.setViewport({width: 1280, height: 720});
 
@@ -82,7 +79,8 @@ async function main() {
         // Проверка на наличие региона в списке
         if (!await checkRegion(page, regionName)) {
             await browser.close();
-            throw new Error(`Region ${regionName} isn't on the site`)
+            console.error(`Error: Region isn't on the site`)
+            return;
         }
         await page.locator(`text/${regionName}`).click();
 
@@ -107,11 +105,11 @@ async function main() {
         });
 
         console.log("Done");
-        await browser.close();
     } catch (e) {
         console.error(e)
-        return;
     }
+
+    await browser.close();
 }
 
 await main();
