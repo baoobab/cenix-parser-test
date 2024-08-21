@@ -87,7 +87,12 @@ const checkRegion = async (page, regionName) => {
 
 
 async function main() {
-    const browser = await puppeteer.launch({headless: false});
+    const browser = await puppeteer.launch({
+        headless: false,
+        args: [
+            "--no-sandbox",
+        ]
+    });
     try {
         const url = process.argv[process.argv.length - 2]?.trim();
         const regionName = process.argv[process.argv.length - 1]?.trim();
